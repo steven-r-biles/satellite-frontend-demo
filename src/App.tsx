@@ -7,12 +7,15 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 import Input from "@cloudscape-design/components/input";
 import Multiselect, { MultiselectProps } from "@cloudscape-design/components/multiselect";
 import Tabs from "@cloudscape-design/components/tabs";
+import Grid from "@cloudscape-design/components/grid";
+import FormField from "@cloudscape-design/components/form-field";
 
 import { TabDataViewer } from './TabDataViewer';
 import { DataProvider } from './DataProvider';
 import { ChartViewer } from './ChartViewer';
 
 import { TelemetryDataPoint } from './types';
+import { Button } from '@cloudscape-design/components';
 
 const CraftSelector = ({ setCraft }: { setCraft: React.Dispatch<React.SetStateAction<string[]>> }) => {
   const [value, setValue] = useState("");
@@ -33,33 +36,41 @@ const CraftSelector = ({ setCraft }: { setCraft: React.Dispatch<React.SetStateAc
 
   return (
     <SpaceBetween size="s">
-      <span>Enter Spacecraft Name ({options.length} matches)</span>
+      <Grid gridDefinition={[{colspan:6},{colspan:6},{colspan:6},{colspan:6}]}>
+      <FormField
+      description="Partial matches will populate in the selector."
+      label={`Enter Spacecraft Name (${options.length} matches)`}
+    >
       <Input
         value={value}
         onChange={(event) => setValue(event.detail.value)}
       />
-      <Multiselect
-        selectedOptions={selectedOptions}
-        onChange={({ detail }) => {
-          setSelectedOptions(detail.selectedOptions.slice())
-          setCraft(detail.selectedOptions.map(x => x.value || ""))
-        }
-        }
-        options={options}
-        placeholder="Choose options"
-      />
+      </FormField>
+      <div>Timer</div>
+        <Multiselect
+          selectedOptions={selectedOptions}
+          onChange={({ detail }) => {
+            setSelectedOptions(detail.selectedOptions.slice())
+            setCraft(detail.selectedOptions.map(x => x.value || ""))
+          }
+          }
+          options={options}
+          placeholder="Choose options"
+        />
+        <Button onClick={() => setSelectedOptions([])}>Clear Selection</Button>
+      </Grid>
     </SpaceBetween>
   )
 }
 
 const parseCSV = (csvdata: string, craft: string[]) => {
-  // Since we only have example data for one craft, we'll multiply the values by a random
-  // number for each craft selected
   const lines = csvdata.split('\n');
   const headers = lines[0].split(',');
   const result = [];
   let id = 0;
   for (const craftName of craft) {
+    // Since we only have example data for one craft, we'll multiply the values by a random
+    // number for each craft selected
     const multiplier = Math.floor(Math.random() * 10) + 1;
 
     const data = lines.slice(1).map(line => {
@@ -115,7 +126,6 @@ const DataViewer = ({ craft }: { craft: string[] }) => {
 export default function App() {
   const [craft, setCraft] = useState<string[]>([]);
 
-
   return (
     <Container header={
       <Header
@@ -126,7 +136,6 @@ export default function App() {
     }>
       <CraftSelector setCraft={setCraft} />
       <DataViewer craft={craft} />
-
     </Container>
   );
 }
