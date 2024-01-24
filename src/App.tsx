@@ -5,7 +5,6 @@ import Header from "@cloudscape-design/components/header";
 import Container from "@cloudscape-design/components/container";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 import Input from "@cloudscape-design/components/input";
-import Button from "@cloudscape-design/components/button";
 import Multiselect, { MultiselectProps } from "@cloudscape-design/components/multiselect";
 import Tabs from "@cloudscape-design/components/tabs";
 
@@ -41,59 +40,75 @@ const CraftSelector = ({ setCraft }: { setCraft: React.Dispatch<React.SetStateAc
       />
       <Multiselect
         selectedOptions={selectedOptions}
-        onChange={({ detail }) =>
+        onChange={({ detail }) => {
           setSelectedOptions(detail.selectedOptions.slice())
+          setCraft(detail.selectedOptions.map(x => x.value || ""))
+        }
         }
         options={options}
         placeholder="Choose options"
       />
-      <Button variant="primary" onClick={() => setCraft(selectedOptions.map(x => x.value || ""))}>View Data</Button>
     </SpaceBetween>
   )
 }
 
-const parseCSV = (csvdata: string) => {
+const parseCSV = (csvdata: string, craft: string[]) => {
+  // Since we only have example data for one craft, we'll multiply the values by a random
+  // number for each craft selected
   const lines = csvdata.split('\n');
   const headers = lines[0].split(',');
-  const data = lines.slice(1).map(line => {
+  const result = [];
+  let id = 0;
+  for (const craftName of craft) {
+    const multiplier = Math.floor(Math.random() * 10) + 1;
+
+    const data = lines.slice(1).map(line => {
       const obj: any = {};
       line.split(',').forEach((value, index) => {
-          if (headers[index] === 'value'){
-            obj[headers[index]] = parseFloat(value);
-          } else {
-            obj[headers[index]] = value;
-          }
+        if (headers[index] === 'measurement') {
+          obj[headers[index]] = craftName + '-' + value;
+        } else if (headers[index] === 'value') {
+          obj[headers[index]] = parseFloat(value) * multiplier;
+        } else {
+          obj[headers[index]] = value;
+        }
       });
+      obj.id = id++;
       return obj;
-  });
-  return data;
+    });
+    result.push(...data);
+  }
+  return result;
 }
 
-// TODO: if no craft selected, display a message
 const DataViewer = ({ craft }: { craft: string[] }) => {
   const [data, setData] = useState<TelemetryDataPoint[]>([]);
 
   useEffect(() => {
-      new DataProvider().getData('data').then(rawdata => {
-          setData(parseCSV(rawdata.csv_telemetry));
-      });
-  }, []);
+    new DataProvider().getData('data').then(rawdata => {
+      setData(parseCSV(rawdata.csv_telemetry, craft));
+    });
+  }, [craft]);
+
+  if (!craft.length) {
+    return <p>Select one or more spacecraft to view data</p>;
+  }
 
   return (
-      <Tabs
-          tabs={[
-              {
-                  label: "Tabular Data",
-                  id: "tabular",
-                  content: <TabDataViewer data={data} />
-              },
-              {
-                  label: "Chart",
-                  id: "chart",
-                  content: <ChartViewer data={data}/>
-              },
-          ]}
-      />
+    <Tabs
+      tabs={[
+        {
+          label: "Tabular Data",
+          id: "tabular",
+          content: <TabDataViewer data={data} />
+        },
+        {
+          label: "Chart",
+          id: "chart",
+          content: <ChartViewer data={data} />
+        },
+      ]}
+    />
   )
 }
 
@@ -102,18 +117,17 @@ export default function App() {
 
 
   return (
-      <Container header={
-        <Header
-          variant="h1"
-          description="Container description"
-        >
-          View Spacecraft Data
-        </Header>
-      }>
-        <CraftSelector setCraft={setCraft} />
-        <DataViewer craft={craft} />
+    <Container header={
+      <Header
+        variant="h1"
+      >
+        View Spacecraft Data
+      </Header>
+    }>
+      <CraftSelector setCraft={setCraft} />
+      <DataViewer craft={craft} />
 
-      </Container>
+    </Container>
   );
 }
 

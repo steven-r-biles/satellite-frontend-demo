@@ -8,50 +8,103 @@ import Button from "@cloudscape-design/components/button";
 import TextFilter from "@cloudscape-design/components/text-filter";
 import Header from "@cloudscape-design/components/header";
 import Pagination from "@cloudscape-design/components/pagination";
-import CollectionPreferences from "@cloudscape-design/components/collection-preferences";
+import CollectionPreferences, {CollectionPreferencesProps} from "@cloudscape-design/components/collection-preferences";
+import { useCollection } from '@cloudscape-design/collection-hooks';
 
 import { TelemetryDataPoint } from './types';
 
+const columnDefinitions = [
+    {
+        id: "measurement",
+        header: "Measurement",
+        cell: (item: TelemetryDataPoint) => item.measurement,
+        sortingField: "name",
+        isRowHeader: true
+    },
+    {
+        id: "time",
+        header: "Time",
+        cell: (item: TelemetryDataPoint) => item.time,
+    },
+    {
+        id: "value",
+        header: "Value",
+        cell: (item: TelemetryDataPoint) => item.value
+    },
+    {
+        id: "apid",
+        header: "apid",
+        cell: (item: TelemetryDataPoint) => item.apid
+    }
+]
 
+const paginationLabels = {
+    nextPageLabel: 'Next page',
+    pageLabel: (pageNumber: number) => `Go to page ${pageNumber}`,
+    previousPageLabel: 'Previous page',
+};
+const pageSizePreference = {
+    title: 'Select page size',
+    options: [
+        { value: 10, label: '10 resources' },
+        { value: 20, label: '20 resources' },
+    ],
+};
+const visibleContentPreference = {
+    title: 'Select visible content',
+    options: [
+      {
+        label: 'Main properties',
+        options: columnDefinitions.map(({ id, header }) => ({ id, label: header, editable: id !== 'id' })),
+      },
+    ],
+  };
+const collectionPreferencesProps = {
+    pageSizePreference,
+    visibleContentPreference,
+    cancelLabel: 'Cancel',
+    confirmLabel: 'Confirm',
+    title: 'Preferences',
+};
+
+function EmptyState({ title, }: { title: string }) {
+    return (
+        <Box textAlign="center" color="inherit">
+            <Box variant="strong" textAlign="center" color="inherit">
+                {title}
+            </Box>
+
+        </Box>
+    );
+}
 
 export const TabDataViewer = ({ data }: { data: TelemetryDataPoint[] }) => {
+    const [preferences, setPreferences] = useState<CollectionPreferencesProps.Preferences>({ pageSize: 20 });
+    const { items, actions, filteredItemsCount, collectionProps, filterProps, paginationProps } = useCollection(
+        data,
+        {
+            filtering: {
+                empty: <EmptyState title="No instances" />,
+                noMatch: (
+                    <EmptyState
+                        title="No matches"
+                    />
+                ),
+            },
+            pagination: { pageSize: preferences.pageSize },
+            sorting: {},
+            selection: {},
+        }
+    );
+    const { selectedItems } = collectionProps;
     return (
         <Table
-
-            columnDefinitions={[
-                {
-                    id: "measurement",
-                    header: "Measurement",
-                    cell: item => item.measurement,
-                    sortingField: "name",
-                    isRowHeader: true
-                },
-                {
-                    id: "time",
-                    header: "Time",
-                    cell: item => item.time,
-                },
-                {
-                    id: "value",
-                    header: "Value",
-                    cell: item => item.value
-                },
-                {
-                    id: "apid",
-                    header: "apid",
-                    cell: item => item.apid
-                }
-            ]}
-            columnDisplay={[
-                { id: "measurement", visible: true },
-                { id: "time", visible: true },
-                { id: "value", visible: true },
-                { id: "apid", visible: true }
-            ]}
-            items={data}
+            {...collectionProps}
+            columnDefinitions={columnDefinitions}
+            columnDisplay={preferences.contentDisplay}
+            items={items}
             loadingText="Loading resources"
-            selectionType="multi"
-            trackBy="name"
+            trackBy="id"
             empty={
                 <Box
                     margin={{ vertical: "xs" }}
@@ -63,40 +116,21 @@ export const TabDataViewer = ({ data }: { data: TelemetryDataPoint[] }) => {
                     </SpaceBetween>
                 </Box>
             }
-            filter={
-                <TextFilter
-                    filteringPlaceholder="Find resources"
-                    filteringText=""
-                />
-            }
             header={
                 <Header
-                    counter={
-                        data.length
-                            ? "(" + data.length + "/10)"
-                            : "(10)"
-                    }
+                counter={selectedItems?.length ? `(${selectedItems.length}/${data.length})` : `(${data.length})`}
                 >
                     Telemetry Data
                 </Header>
             }
-            pagination={
-                <Pagination currentPageIndex={1} pagesCount={2} />
-            }
+            pagination={<Pagination {...paginationProps} />}
             preferences={
                 <CollectionPreferences
+                    {...collectionPreferencesProps}
                     title="Preferences"
                     confirmLabel="Confirm"
                     cancelLabel="Cancel"
-                    preferences={{
-                        pageSize: 10,
-                        contentDisplay: [
-                            { id: "variable", visible: true },
-                            { id: "value", visible: true },
-                            { id: "type", visible: true },
-                            { id: "description", visible: true }
-                        ]
-                    }}
+                    preferences={preferences}
                     pageSizePreference={{
                         title: "Page size",
                         options: [
@@ -104,42 +138,19 @@ export const TabDataViewer = ({ data }: { data: TelemetryDataPoint[] }) => {
                             { value: 20, label: "20 resources" }
                         ]
                     }}
-                    wrapLinesPreference={{}}
-                    stripedRowsPreference={{}}
-                    contentDensityPreference={{}}
                     contentDisplayPreference={{
                         options: [
                             {
-                                id: "variable",
-                                label: "Variable name",
+                                id: "measurement",
+                                label: "Measurement",
                                 alwaysVisible: true
                             },
-                            { id: "value", label: "Text value" },
-                            { id: "type", label: "Type" },
-                            { id: "description", label: "Description" }
+                            { id: "time", label: "Time" },
+                            { id: "value", label: "Value" },
+                            { id: "apid", label: "apid" }
                         ]
                     }}
-                    stickyColumnsPreference={{
-                        firstColumns: {
-                            title: "Stick first column(s)",
-                            description:
-                                "Keep the first column(s) visible while horizontally scrolling the table content.",
-                            options: [
-                                { label: "None", value: 0 },
-                                { label: "First column", value: 1 },
-                                { label: "First two columns", value: 2 }
-                            ]
-                        },
-                        lastColumns: {
-                            title: "Stick last column",
-                            description:
-                                "Keep the last column visible while horizontally scrolling the table content.",
-                            options: [
-                                { label: "None", value: 0 },
-                                { label: "Last column", value: 1 }
-                            ]
-                        }
-                    }}
+                    onConfirm={({ detail }) => setPreferences(detail)}
                 />
             }
         />
