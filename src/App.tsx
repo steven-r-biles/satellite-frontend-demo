@@ -9,15 +9,37 @@ import Multiselect, { MultiselectProps } from "@cloudscape-design/components/mul
 import Tabs from "@cloudscape-design/components/tabs";
 import Grid from "@cloudscape-design/components/grid";
 import FormField from "@cloudscape-design/components/form-field";
+import TextContent from "@cloudscape-design/components/text-content";
+import { Button } from '@cloudscape-design/components';
 
 import { TabDataViewer } from './TabDataViewer';
 import { DataProvider } from './DataProvider';
 import { ChartViewer } from './ChartViewer';
 
 import { TelemetryDataPoint } from './types';
-import { Button } from '@cloudscape-design/components';
 
-const CraftSelector = ({ setCraft }: { setCraft: React.Dispatch<React.SetStateAction<string[]>> }) => {
+const Timer = ({ dataCount }: { dataCount: number }) => {
+  const [seconds, setSeconds] = useState(0)
+
+  useEffect(() => {
+    setSeconds(0)
+  }, [dataCount])
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setSeconds((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [])
+
+  return (<TextContent>
+    <h5>Time since data loaded</h5>
+    {dataCount ? <p>{seconds} seconds</p> : <p>(No data)</p>}
+  </TextContent>)
+}
+
+
+export const CraftSelector = ({ setCraft, dataCount }: { setCraft: React.Dispatch<React.SetStateAction<string[]>>, dataCount: number }) => {
   const [value, setValue] = useState("");
   const [options, setOptions] = useState<MultiselectProps.Option[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<MultiselectProps.Option[]>([]);
@@ -34,24 +56,28 @@ const CraftSelector = ({ setCraft }: { setCraft: React.Dispatch<React.SetStateAc
     setOptions(matches.map((match) => ({ label: match, value: match })))
   }, [value])
 
+  useEffect(() => {
+    setCraft(selectedOptions.map(x => x.value || ""))
+  }, [selectedOptions])
+
   return (
     <SpaceBetween size="s">
-      <Grid gridDefinition={[{colspan:6},{colspan:6},{colspan:6},{colspan:6}]}>
-      <FormField
-      description="Partial matches will populate in the selector."
-      label={`Enter Spacecraft Name (${options.length} matches)`}
-    >
-      <Input
-        value={value}
-        onChange={(event) => setValue(event.detail.value)}
-      />
-      </FormField>
-      <div>Timer</div>
+      <Grid gridDefinition={[{ colspan: 6 }, { colspan: 6 }, { colspan: 6 }, { colspan: 6 }]}>
+        <FormField
+          description="Partial matches will populate in the selector."
+          label={`Enter Spacecraft Name (${options.length} matches)`}
+        >
+          <Input
+            value={value}
+            id="partial_spacecraft_name"
+            onChange={(event) => setValue(event.detail.value)}
+          />
+        </FormField>
+        <Timer dataCount={dataCount} />
         <Multiselect
           selectedOptions={selectedOptions}
           onChange={({ detail }) => {
             setSelectedOptions(detail.selectedOptions.slice())
-            setCraft(detail.selectedOptions.map(x => x.value || ""))
           }
           }
           options={options}
@@ -92,16 +118,8 @@ const parseCSV = (csvdata: string, craft: string[]) => {
   return result;
 }
 
-const DataViewer = ({ craft }: { craft: string[] }) => {
-  const [data, setData] = useState<TelemetryDataPoint[]>([]);
-
-  useEffect(() => {
-    new DataProvider().getData('data').then(rawdata => {
-      setData(parseCSV(rawdata.csv_telemetry, craft));
-    });
-  }, [craft]);
-
-  if (!craft.length) {
+const DataViewer = ({ data }: { data: TelemetryDataPoint[] }) => {
+  if (!data.length) {
     return <p>Select one or more spacecraft to view data</p>;
   }
 
@@ -125,6 +143,13 @@ const DataViewer = ({ craft }: { craft: string[] }) => {
 
 export default function App() {
   const [craft, setCraft] = useState<string[]>([]);
+  const [data, setData] = useState<TelemetryDataPoint[]>([]);
+
+  useEffect(() => {
+    new DataProvider().getData('data').then(rawdata => {
+      setData(parseCSV(rawdata.csv_telemetry, craft));
+    });
+  }, [craft]);
 
   return (
     <Container header={
@@ -134,8 +159,8 @@ export default function App() {
         View Spacecraft Data
       </Header>
     }>
-      <CraftSelector setCraft={setCraft} />
-      <DataViewer craft={craft} />
+      <CraftSelector setCraft={setCraft} dataCount={data.length} />
+      <DataViewer data={data} />
     </Container>
   );
 }
